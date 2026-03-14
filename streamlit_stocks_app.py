@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import streamlit as st
 import yfinance as yf
+from yfinance.exceptions import YFRateLimitError
 
 
 def _format_tickers(raw_tickers: str) -> list[str]:
@@ -17,40 +18,76 @@ def _safe_float(value):
         return np.nan
 
 
+def _safe_get_history(ticker_obj: yf.Ticker) -> pd.DataFrame:
+    try:
+        return ticker_obj.history(period="3mo", interval="1d")
+    except YFRateLimitError:
+        return pd.DataFrame()
+    except Exception:
+        return pd.DataFrame()
+
+
+def _safe_get_info(ticker_obj: yf.Ticker) -> dict:
+    try:
+        return ticker_obj.get_info() or {}
+    except YFRateLimitError:
+        return {}
+    except Exception:
+        return {}
+
+
+def _safe_get_fast_info(ticker_obj: yf.Ticker) -> dict:
+    try:
+        return dict(ticker_obj.fast_info or {})
+    except Exception:
+        return {}
+
+
 @st.cache_data(ttl=300, show_spinner=False)
 def get_stock_data(tickers: tuple[str, ...]) -> pd.DataFrame:
     rows = []
 
     for ticker in tickers:
         tk = yf.Ticker(ticker)
-        info = tk.info or {}
-        history = tk.history(period="3mo", interval="1d")
+        info = _safe_get_info(tk)
+        fast_info = _safe_get_fast_info(tk)
+        history = _safe_get_history(tk)
 
-        if history.empty or "Close" not in history.columns:
-            rows.append(
-                {
-                    "Ticker": ticker,
-                    "Precio actual": np.nan,
-                    "P/E Ratio": np.nan,
-                    "Dividend Yield (%)": np.nan,
-                    "Media 50 sesiones": np.nan,
-                    "Debajo media 50": False,
-                }
+        current_price = np.nan
+        mean_50 = np.nan
+
+        if not history.empty and "Close" in history.columns:
+            close_series = history["Close"].dropna()
+            if not close_series.empty:
+                current_price = _safe_float(close_series.iloc[-1])
+                mean_50 = _safe_float(close_series.tail(50).mean())
+
+        if np.isnan(current_price):
+            current_price = _safe_float(
+                fast_info.get("lastPrice", fast_info.get("last_price"))
             )
-            continue
 
-        close_series = history["Close"].dropna()
-        if close_series.empty:
-            current_price = np.nan
-            mean_50 = np.nan
-        else:
-            current_price = _safe_float(close_series.iloc[-1])
-            mean_50 = _safe_float(close_series.tail(50).mean())
+        if np.isnan(mean_50):
+            mean_50 = _safe_float(
+                fast_info.get("fiftyDayAverage", fast_info.get("fifty_day_average"))
+            )
 
         pe_ratio = _safe_float(info.get("trailingPE"))
+        if np.isnan(pe_ratio):
+            pe_ratio = _safe_float(fast_info.get("trailingPE", fast_info.get("trailing_pe")))
+
         dividend_yield = _safe_float(info.get("dividendYield"))
+        if np.isnan(dividend_yield):
+            dividend_yield = _safe_float(
+                fast_info.get("dividendYield", fast_info.get("dividend_yield"))
+            )
         if not np.isnan(dividend_yield):
-            dividend_yield *= 100
+            # yfinance usually returns dividend yield as decimal (0.02 -> 2.00%).
+            if dividend_yield <= 1:
+                dividend_yield *= 100
+            else:
+                # Some providers return percentage already.
+                dividend_yield = dividend_yield
 
         below_50 = bool(
             not np.isnan(current_price)
