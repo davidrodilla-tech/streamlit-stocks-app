@@ -186,7 +186,8 @@ def main():
             )
         )
 
-        st.dataframe(styled, use_container_width=True)
+        table_html = styled.hide(axis="index").to_html()
+        st.markdown(table_html, unsafe_allow_html=True)
         st.caption("Filas en verde: precio actual por debajo de la media de cierre de 50 sesiones.")
 
 
