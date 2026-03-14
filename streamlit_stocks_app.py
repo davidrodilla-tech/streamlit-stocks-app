@@ -5,6 +5,17 @@ import yfinance as yf
 from yfinance.exceptions import YFRateLimitError
 
 
+DEFAULT_TICKERS = """ADBE
+RIO
+ACN
+GLOB
+ALPUL.PA
+005930.KS
+PBR
+PETR4.SA
+EMBRAC-B.ST"""
+
+
 def _format_tickers(raw_tickers: str) -> list[str]:
     return [t.strip().upper() for t in raw_tickers.replace("\n", ",").split(",") if t.strip()]
 
@@ -112,6 +123,20 @@ def get_stock_data(tickers: tuple[str, ...]) -> pd.DataFrame:
 
 def main():
     st.set_page_config(page_title="Analizador de Tickers", page_icon="📈", layout="wide")
+    st.markdown(
+        """
+        <style>
+        .stApp, .stApp p, .stApp label, .stApp span, .stApp div,
+        .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6 {
+            color: #000000 !important;
+        }
+        .stTextInput input, .stTextArea textarea {
+            color: #000000 !important;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
 
     st.title("📈 Analizador de acciones con yfinance")
     st.write(
@@ -121,8 +146,8 @@ def main():
 
     raw_input = st.text_area(
         "Tickers",
-        value="AAPL, TSLA, MSFT",
-        help="Separa por comas o saltos de línea",
+        value=DEFAULT_TICKERS,
+        help="Separa por comas o saltos de linea. Usa formato Yahoo (por ejemplo: 005930.KS, PETR4.SA).",
     )
 
     only_below_mean = st.checkbox("Mostrar solo acciones por debajo de la media de 50 sesiones")
