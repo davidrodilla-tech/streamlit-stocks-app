@@ -123,20 +123,6 @@ def get_stock_data(tickers: tuple[str, ...]) -> pd.DataFrame:
 
 def main():
     st.set_page_config(page_title="Analizador de Tickers", page_icon="📈", layout="wide")
-    st.markdown(
-        """
-        <style>
-        .stApp, .stApp p, .stApp label, .stApp span, .stApp div,
-        .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6 {
-            color: #000000 !important;
-        }
-        .stTextInput input, .stTextArea textarea {
-            color: #000000 !important;
-        }
-        </style>
-        """,
-        unsafe_allow_html=True,
-    )
 
     st.title("📈 Analizador de acciones con yfinance")
     st.write(
@@ -173,7 +159,7 @@ def main():
 
         def highlight_below_mean(row):
             if row["Debajo media 50"]:
-                return ["background-color: #c6f6d5"] * len(row)
+                return ["background-color: #c6f6d5; color: #000000"] * len(row)
             return [""] * len(row)
 
         display_columns = [
